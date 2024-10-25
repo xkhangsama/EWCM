@@ -10,7 +10,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class UnitRequestDto {
+public class UnitUpdateRequestDto {
     private String unitName;
 
     private String unitAddress;

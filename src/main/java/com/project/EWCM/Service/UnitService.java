@@ -1,14 +1,13 @@
 package com.project.EWCM.Service;
 
-import com.project.EWCM.DTO.IdDto;
-import com.project.EWCM.DTO.UnitDto;
-import com.project.EWCM.DTO.UnitRequestDto;
+import com.project.EWCM.DTO.*;
 import com.project.EWCM.Document.Account;
 import com.project.EWCM.Document.Unit;
 import com.project.EWCM.exception.HttpException;
 import com.project.EWCM.repository.AccountRepository;
 import com.project.EWCM.repository.UnitRepository;
 import jakarta.servlet.http.HttpServletResponse;
+import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +34,7 @@ public class UnitService {
     public IdDto createUnit(UnitRequestDto unitDto, String username) {
         Optional<Account> optional = accountRepository.findByUsername(username);
         int levelOfUnitAccount = 0;
+        //Xử lý nếu quyền admin thì tạo đơn vị cấp lớn nhất (cấp 1) còn không thì tạo đơn vị cấp tiếp theo của đơn vị hiện tại của người tạo
         if(!optional.get().getType().equals("admin")){
             levelOfUnitAccount = optional.get().getUnit().getUnitLevel();
             if(levelOfUnitAccount >= maxLevel){
@@ -66,5 +66,44 @@ public class UnitService {
         unitRepository.save(newUnit);
         logger.info("EWCD-Saved Unit Data: " + newUnit.toString());
         return new IdDto(newUnit.getId());
+    }
+
+    public AffectedRowsDto updateUnit(UnitUpdateRequestDto unitUpdateRequestDto, String username, ObjectId id) {
+        AffectedRowsDto affectedRowsDto = new AffectedRowsDto();
+        Unit oldUnit = unitRepository.findById(id).get();
+        if(Objects.nonNull(unitUpdateRequestDto.getUnitName())){
+            oldUnit.setUnitName(unitUpdateRequestDto.getUnitName());
+        }
+        if(Objects.nonNull(unitUpdateRequestDto.getUnitAddress())){
+            oldUnit.setUnitAddress(unitUpdateRequestDto.getUnitAddress());
+        }
+        if(Objects.nonNull(unitUpdateRequestDto.getUnitNumber())){
+            oldUnit.setUnitNumber(unitUpdateRequestDto.getUnitNumber());
+        }
+        if(Objects.nonNull(unitUpdateRequestDto.getUnitPhoneNumber())){
+            oldUnit.setUnitPhoneNumber(unitUpdateRequestDto.getUnitPhoneNumber());
+        }
+        if(Objects.nonNull(unitUpdateRequestDto.getUnitHead())){
+            oldUnit.setUnitHead(unitUpdateRequestDto.getUnitHead());
+        }
+        if(Objects.nonNull(unitUpdateRequestDto.getAccountListOfUnit())){
+            oldUnit.setAccountListOfUnit(unitUpdateRequestDto.getAccountListOfUnit());
+        }
+        Unit updatedUnit = unitRepository.save(oldUnit);
+        affectedRowsDto.setAffectedRows(1);
+        return affectedRowsDto;
+    }
+
+    public AffectedRowsDto deleteUnit(String username, ObjectId id) {
+        AffectedRowsDto affectedRows = new AffectedRowsDto();
+        Unit oldUnit = unitRepository.findById(id).orElse(null);
+        if(oldUnit != null){
+            unitRepository.deleteById(id);
+            affectedRows.setAffectedRows(1);
+        }else{
+            affectedRows.setAffectedRows(0);
+            affectedRows.setError("Không tìm thấy đơn vị.");
+        }
+        return affectedRows;
     }
 }

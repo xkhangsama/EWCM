@@ -25,12 +25,12 @@ public class HttpExceptionDto implements Serializable {
     }
 
     public HttpExceptionDto bindMessageSource(String message) {
-        setMessage(MESSAGE_SOURCE_PREFIX + getCode() + message);
+        setMessage(MESSAGE_SOURCE_PREFIX + getCode() + " " + message);
         return this;
     }
 
     @Override
     public String toString() {
-        return "DIGO-" + getCode() + ": " + getMessage();
+        return "EWCM-" + getCode() + ": " + getMessage();
     }
 }

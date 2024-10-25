@@ -2,6 +2,7 @@ package com.project.EWCM.Document;
 
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import com.project.EWCM.DTO.AccountDto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -30,7 +31,7 @@ public class Unit {
 
     private List<Account> accountListOfUnit;
 
-    private Account unitHead;
+    private AccountDto unitHead;
 
     private int UnitLevel;
 }
