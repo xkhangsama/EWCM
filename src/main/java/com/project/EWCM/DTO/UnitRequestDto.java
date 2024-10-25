@@ -10,7 +10,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class UnitDto {
+public class UnitRequestDto {
     private String unitName;
 
     private String unitAddress;
@@ -23,5 +23,4 @@ public class UnitDto {
 
     private Account unitHead;
 
-    private int UnitLevel;
 }
