@@ -76,7 +76,7 @@ public class UnitController {
     }
 
     @PostMapping("/{id}")
-    public ResponseEntity<Object> setUnitHead(HttpServletRequest request, @PathVariable(value = "id", required = true) ObjectId id, @RequestBody Account unitHead){
+    public ResponseEntity<Object> updateUnitHead(HttpServletRequest request, @PathVariable(value = "id", required = true) ObjectId id, @RequestBody Account unitHead){
         String requestPath = request.getMethod() + " " + request.getRequestURI() + (request.getQueryString() != null ? "?" + request.getQueryString() : "");
         logger.info("EWCD-Request: " + requestPath);
         // Lấy token từ header Authorization
@@ -84,7 +84,7 @@ public class UnitController {
 
         // Lấy thông tin từ token
         String username = jwtUtils.getUserNameFromJwtToken(token);
-        AffectedRowsDto affectedRowsDto = unitService.setUnitHead(username, id, unitHead);
+        AffectedRowsDto affectedRowsDto = unitService.updateUnitHead(username, id, unitHead);
         return ResponseEntity.ok(affectedRowsDto);
     }
 
