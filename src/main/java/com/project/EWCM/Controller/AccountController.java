@@ -1,16 +1,15 @@
 package com.project.EWCM.Controller;
 
-import com.project.EWCM.DTO.AccountDto;
-import com.project.EWCM.DTO.IdDto;
-import com.project.EWCM.DTO.JwtResponseDto;
-import com.project.EWCM.DTO.LoginRequestDto;
+import com.project.EWCM.DTO.*;
 import com.project.EWCM.Service.AccountService;
 import com.project.EWCM.config.jwt.JwtUtils;
 import com.project.EWCM.config.services.UserDetailsImpl;
 import com.project.EWCM.exception.HttpException;
+import com.project.EWCM.pojo.Account;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -71,5 +70,31 @@ public class AccountController {
         } catch (Exception e) {
             throw new HttpException(10005,"Đã có lỗi xảy ra, vui lòng thử lại.", HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
+    }
+
+    @GetMapping()
+    public ResponseEntity<Object> getAccountDetail(HttpServletRequest request){
+        String requestPath = request.getMethod() + " " + request.getRequestURI() + (request.getQueryString() != null ? "?" + request.getQueryString() : "");
+        logger.info("EWCD-Request: " + requestPath);
+        // Lấy token từ header Authorization
+        String token = request.getHeader("Authorization").substring(7); // Lấy token sau "Bearer "
+
+        // Lấy thông tin từ token
+        String username = jwtUtils.getUserNameFromJwtToken(token);
+        AccountDto unitDetail = accountService.getAccountDetail(username);
+        return ResponseEntity.ok(unitDetail);
+    }
+
+    @GetMapping("/--get-account-list-unit-null")
+    public ResponseEntity<Object> getAccountList(HttpServletRequest request){
+        String requestPath = request.getMethod() + " " + request.getRequestURI() + (request.getQueryString() != null ? "?" + request.getQueryString() : "");
+        logger.info("EWCD-Request: " + requestPath);
+        // Lấy token từ header Authorization
+        String token = request.getHeader("Authorization").substring(7); // Lấy token sau "Bearer "
+
+        // Lấy thông tin từ token
+        String username = jwtUtils.getUserNameFromJwtToken(token);
+        List<Account> unitDetail = accountService.getAccountList(username);
+        return ResponseEntity.ok(unitDetail);
     }
 }
