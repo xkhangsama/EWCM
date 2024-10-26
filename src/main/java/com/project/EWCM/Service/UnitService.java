@@ -38,9 +38,14 @@ public class UnitService {
         if(!optional.get().getType().equals("admin")){
             levelOfUnitAccount = optional.get().getUnit().getUnitLevel();
             if(levelOfUnitAccount >= maxLevel){
-                throw new HttpException(10007,"Users are not allowed to create units of a lower level.", HttpServletResponse.SC_BAD_REQUEST);
+                throw new HttpException(10003,"Users are not allowed to create units of a lower level.", HttpServletResponse.SC_BAD_REQUEST);
             }
         }
+
+        Account account = accountRepository.findByUsername(username).orElseThrow(() ->
+                new HttpException(10004, "User not found.", HttpServletResponse.SC_NOT_FOUND)
+        );
+
 
         Unit newUnit = new Unit();
         if(Objects.nonNull(unitDto.getUnitName())){
@@ -61,6 +66,17 @@ public class UnitService {
         if(Objects.nonNull(unitDto.getAccountListOfUnit())){
             newUnit.setAccountListOfUnit(unitDto.getAccountListOfUnit());
         }
+
+        //Mapping dữ liệu tài khoản tạo
+        com.project.EWCM.pojo.Account createdBy = new com.project.EWCM.pojo.Account();
+        createdBy.setId(account.getId());
+        createdBy.setUsername(account.getUsername());
+        createdBy.setEmail(account.getEmail());
+        createdBy.setFullName(account.getFullName());
+        createdBy.setType(account.getType());
+
+        newUnit.setCreatedBy(createdBy);
+
         // set unit level = current unit level +1
         newUnit.setUnitLevel(levelOfUnitAccount + 1);
         unitRepository.save(newUnit);
@@ -91,6 +107,7 @@ public class UnitService {
         }
         Unit updatedUnit = unitRepository.save(oldUnit);
         affectedRowsDto.setAffectedRows(1);
+        logger.info("EWCD-Update Unit Data: " + updatedUnit.toString());
         return affectedRowsDto;
     }
 
@@ -104,6 +121,67 @@ public class UnitService {
             affectedRows.setAffectedRows(0);
             affectedRows.setError("Không tìm thấy đơn vị.");
         }
+        logger.info("EWCD-Delete Unit Data: " + oldUnit.toString());
         return affectedRows;
+    }
+
+    public UnitDto getUnitDetail(String username, ObjectId id) {
+        try {
+            Unit unitDetail = unitRepository.findById(id).orElseThrow(() ->
+                    new HttpException(10004, "Unit not found.", HttpServletResponse.SC_NOT_FOUND)
+            );
+
+            Account account = accountRepository.findByUsername(username).orElseThrow(() ->
+                    new HttpException(10004, "User not found.", HttpServletResponse.SC_NOT_FOUND)
+            );
+
+            // Kiểm tra quyền truy cập
+            if (unitDetail.getUnitHead() == null || unitDetail.getCreatedBy() == null) {
+                throw new HttpException(10003, "Unit head or creator not defined.", HttpServletResponse.SC_FORBIDDEN);
+            }
+
+            //Chỉ lấy thông tin chi tiết đơn vị mà người dùng tạo hoặc người dùng quản lý
+            if (!unitDetail.getUnitHead().getId().equals(account.getId()) &&
+                    !unitDetail.getCreatedBy().getId().equals(account.getId())) {
+                throw new HttpException(10003, "Users are not allowed.", HttpServletResponse.SC_FORBIDDEN);
+            }
+
+            // Tạo DTO
+            UnitDto result = new UnitDto();
+            result.setUnitName(unitDetail.getUnitName());
+            result.setUnitAddress(unitDetail.getUnitAddress());
+            result.setUnitNumber(unitDetail.getUnitNumber());
+            result.setUnitPhoneNumber(unitDetail.getUnitPhoneNumber());
+            result.setUnitLevel(unitDetail.getUnitLevel());
+            result.setUnitHead(unitDetail.getUnitHead());
+            result.setAccountListOfUnit(unitDetail.getAccountListOfUnit());
+            logger.info("EWCD-Get Unit Detail: " + result.toString());
+            return result;
+
+        } catch (HttpException e) {
+            logger.info("EWCD-Get Unit Detail: " + e.getMessage());
+            throw new HttpException(10005, e.getMessage(), HttpServletResponse.SC_BAD_REQUEST);
+        }
+    }
+
+
+    public AffectedRowsDto setUnitHead(String username, ObjectId id, com.project.EWCM.pojo.Account unitHead) {
+        AffectedRowsDto affectedRowsDto = new AffectedRowsDto();
+        Unit unit = unitRepository.findById(id).orElseThrow(() ->
+                new HttpException(10004, "Unit not found.", HttpServletResponse.SC_NOT_FOUND)
+        );
+
+        Account account = accountRepository.findByUsername(username).orElseThrow(() ->
+                new HttpException(10004, "User not found.", HttpServletResponse.SC_NOT_FOUND)
+        );
+
+        // Chỉ set được trưởng đơn vị của đơn vị ổng tạo ra
+        if (!unit.getCreatedBy().getId().equals(account.getId())) {
+            throw new HttpException(10003, "Users are not allowed.", HttpServletResponse.SC_FORBIDDEN);
+        }
+
+        unit.setUnitHead(unitHead);
+        affectedRowsDto.setAffectedRows(1);
+        return affectedRowsDto;
     }
 }

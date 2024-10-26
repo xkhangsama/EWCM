@@ -1,6 +1,6 @@
 package com.project.EWCM.DTO;
 
-import com.project.EWCM.Document.Account;
+import com.project.EWCM.pojo.Account;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -21,6 +21,6 @@ public class UnitUpdateRequestDto {
 
     private List<Account> accountListOfUnit;
 
-    private AccountDto unitHead;
+    private com.project.EWCM.pojo.Account unitHead;
 
 }

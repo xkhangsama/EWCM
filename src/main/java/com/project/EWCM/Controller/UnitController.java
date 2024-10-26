@@ -3,6 +3,7 @@ package com.project.EWCM.Controller;
 import com.project.EWCM.DTO.*;
 import com.project.EWCM.Service.UnitService;
 import com.project.EWCM.config.jwt.JwtUtils;
+import com.project.EWCM.pojo.Account;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.bson.types.ObjectId;
@@ -35,6 +36,19 @@ public class UnitController {
         return ResponseEntity.ok(newUnit);
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<Object> getUnitDetail(HttpServletRequest request, @PathVariable(value = "id", required = true) ObjectId id){
+        String requestPath = request.getMethod() + " " + request.getRequestURI() + (request.getQueryString() != null ? "?" + request.getQueryString() : "");
+        logger.info("EWCD-Request: " + requestPath);
+        // Lấy token từ header Authorization
+        String token = request.getHeader("Authorization").substring(7); // Lấy token sau "Bearer "
+
+        // Lấy thông tin từ token
+        String username = jwtUtils.getUserNameFromJwtToken(token);
+        UnitDto unitDetail = unitService.getUnitDetail(username, id);
+        return ResponseEntity.ok(unitDetail);
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<Object> updateUnit(HttpServletRequest request, @PathVariable(value = "id", required = true) ObjectId id, @RequestBody UnitUpdateRequestDto unitUpdateRequestDto){
         String requestPath = request.getMethod() + " " + request.getRequestURI() + (request.getQueryString() != null ? "?" + request.getQueryString() : "");
@@ -60,5 +74,19 @@ public class UnitController {
         AffectedRowsDto affectedRows = unitService.deleteUnit( username, id);
         return ResponseEntity.ok(affectedRows);
     }
+
+    @PostMapping("/{id}")
+    public ResponseEntity<Object> setUnitHead(HttpServletRequest request, @PathVariable(value = "id", required = true) ObjectId id, @RequestBody Account unitHead){
+        String requestPath = request.getMethod() + " " + request.getRequestURI() + (request.getQueryString() != null ? "?" + request.getQueryString() : "");
+        logger.info("EWCD-Request: " + requestPath);
+        // Lấy token từ header Authorization
+        String token = request.getHeader("Authorization").substring(7); // Lấy token sau "Bearer "
+
+        // Lấy thông tin từ token
+        String username = jwtUtils.getUserNameFromJwtToken(token);
+        AffectedRowsDto affectedRowsDto = unitService.setUnitHead(username, id, unitHead);
+        return ResponseEntity.ok(affectedRowsDto);
+    }
+
 
 }
