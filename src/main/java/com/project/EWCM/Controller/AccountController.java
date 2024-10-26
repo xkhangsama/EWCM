@@ -63,8 +63,7 @@ public class AccountController {
                     .map(item -> item.getAuthority())
                     .collect(Collectors.toList());
 
-            return ResponseEntity.ok(new JwtResponseDto(jwt,"Bearer",
-                    userDetails.getUsername(), roles));
+            return ResponseEntity.ok(new JwtResponseDto(jwt,"Bearer",jwtUtils.getJwtExpiration(jwt)));
         } catch (BadCredentialsException e) {
             throw new HttpException(10006,"Tài khoản hoặc mật khẩu không đúng.", HttpServletResponse.SC_UNAUTHORIZED);
         } catch (Exception e) {

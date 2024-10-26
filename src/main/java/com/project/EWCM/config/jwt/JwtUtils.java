@@ -45,6 +45,16 @@ public class JwtUtils {
                 .parseClaimsJws(token).getBody().getSubject();
     }
 
+    public Long getJwtExpiration(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(jwtSecret) // jwtSecret là secret key của bạn
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+
+        return claims.getExpiration().getTime() / 1000;
+    }
+
     public boolean validateJwtToken(String authToken) {
         try {
             Jwts.parserBuilder().setSigningKey(key()).build().parse(authToken);

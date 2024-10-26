@@ -12,7 +12,7 @@ import java.util.List;
 public class JwtResponseDto {
     private String jwt;
     private String type = "Bearer";
-    private String username;
-    private List<String> roles;
+
+    private Long jwtExpirationMs;
 
 }
