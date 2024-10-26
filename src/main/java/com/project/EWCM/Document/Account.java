@@ -3,6 +3,7 @@ package com.project.EWCM.Document;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.project.EWCM.DTO.UnitDto;
+import com.project.EWCM.pojo.Unit;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -25,8 +26,9 @@ public class Account {
     private String fullName;
     private String email;
     private String type;
-    private UnitDto unit;
+    private Unit unit;
     private String temp;
+    private boolean isHead;
     private Date createdDate;
     private Date updatedDate;
     private com.project.EWCM.pojo.Account createdBy;

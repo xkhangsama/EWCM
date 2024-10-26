@@ -88,5 +88,30 @@ public class UnitController {
         return ResponseEntity.ok(affectedRowsDto);
     }
 
+    @PostMapping("/{id}/--add-user-into-unit")
+    public ResponseEntity<Object> addUserIntoUnit(HttpServletRequest request, @PathVariable(value = "id", required = true) ObjectId id, @RequestBody Account user){
+        String requestPath = request.getMethod() + " " + request.getRequestURI() + (request.getQueryString() != null ? "?" + request.getQueryString() : "");
+        logger.info("EWCD-Request: " + requestPath);
+        // Lấy token từ header Authorization
+        String token = request.getHeader("Authorization").substring(7); // Lấy token sau "Bearer "
+
+        // Lấy thông tin từ token
+        String username = jwtUtils.getUserNameFromJwtToken(token);
+        AffectedRowsDto affectedRowsDto = unitService.addUserIntoUnit(username, id, user);
+        return ResponseEntity.ok(affectedRowsDto);
+    }
+
+    @PostMapping("/{id}/--remove-user-from-unit")
+    public ResponseEntity<Object> removeUserFromUnit(HttpServletRequest request, @PathVariable(value = "id", required = true) ObjectId id, @RequestBody Account user){
+        String requestPath = request.getMethod() + " " + request.getRequestURI() + (request.getQueryString() != null ? "?" + request.getQueryString() : "");
+        logger.info("EWCD-Request: " + requestPath);
+        // Lấy token từ header Authorization
+        String token = request.getHeader("Authorization").substring(7); // Lấy token sau "Bearer "
+
+        // Lấy thông tin từ token
+        String username = jwtUtils.getUserNameFromJwtToken(token);
+        AffectedRowsDto affectedRowsDto = unitService.removeUserFromUnit(username, id, user);
+        return ResponseEntity.ok(affectedRowsDto);
+    }
 
 }

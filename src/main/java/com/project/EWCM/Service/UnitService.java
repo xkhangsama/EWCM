@@ -14,6 +14,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.logging.Level;
@@ -60,8 +62,10 @@ public class UnitService {
         if(Objects.nonNull(unitDto.getUnitPhoneNumber())){
             newUnit.setUnitPhoneNumber(unitDto.getUnitPhoneNumber());
         }
+        Account accountHead = new Account();
         if(Objects.nonNull(unitDto.getUnitHead())){
             newUnit.setUnitHead(unitDto.getUnitHead());
+            accountHead = accountRepository.findById(unitDto.getUnitHead().getId()).orElse(null);
         }
         if(Objects.nonNull(unitDto.getAccountListOfUnit())){
             newUnit.setAccountListOfUnit(unitDto.getAccountListOfUnit());
@@ -80,6 +84,12 @@ public class UnitService {
         // set unit level = current unit level +1
         newUnit.setUnitLevel(levelOfUnitAccount + 1);
         unitRepository.save(newUnit);
+        // set unit for account head
+        com.project.EWCM.pojo.Unit unitOfAccount = new com.project.EWCM.pojo.Unit(newUnit.getId(), newUnit.getUnitName(), newUnit.getUnitLevel());
+        accountHead.setUnit(unitOfAccount);
+        accountHead.setHead(true);
+        accountRepository.save(accountHead);
+
         logger.info("EWCD-Saved Unit Data: " + newUnit.toString());
         return new IdDto(newUnit.getId());
     }
@@ -175,13 +185,90 @@ public class UnitService {
                 new HttpException(10004, "User not found.", HttpServletResponse.SC_NOT_FOUND)
         );
 
-        // Chỉ set được trưởng đơn vị của đơn vị ổng tạo ra
+        // Chỉ set được trưởng đơn vị của đơn vị do mình tạo ra
         if (!unit.getCreatedBy().getId().equals(account.getId())) {
             throw new HttpException(10003, "Users are not allowed.", HttpServletResponse.SC_FORBIDDEN);
         }
 
         unit.setUnitHead(unitHead);
+        unitRepository.save(unit);
+        Account accountHead = accountRepository.findById(unitHead.getId()).orElse(null);
+        accountHead.setHead(true);
+        com.project.EWCM.pojo.Unit unitOfAccount = new com.project.EWCM.pojo.Unit(unit.getId(), unit.getUnitName(), unit.getUnitLevel());
+        accountHead.setUnit(unitOfAccount);
+        accountRepository.save(accountHead);
         affectedRowsDto.setAffectedRows(1);
+        logger.info("EWCD-Update Unit Data: " + unit.toString());
+        return affectedRowsDto;
+    }
+
+    public AffectedRowsDto addUserIntoUnit(String username, ObjectId id, com.project.EWCM.pojo.Account user) {
+        AffectedRowsDto affectedRowsDto = new AffectedRowsDto();
+        Unit unit = unitRepository.findById(id).orElseThrow(() ->
+                new HttpException(10004, "Unit not found.", HttpServletResponse.SC_NOT_FOUND)
+        );
+
+        Account account = accountRepository.findByUsername(username).orElseThrow(() ->
+                new HttpException(10004, "User not found.", HttpServletResponse.SC_NOT_FOUND)
+        );
+        // Chỉ thêm người dùng vào đơn vị do mình tạo ra va account chưa thuộc đơn vị nào
+        if (!unit.getCreatedBy().getId().equals(account.getId()) && !unit.getUnitHead().getId().equals(account.getId())) {
+            throw new HttpException(10003, "Users are not allowed.", HttpServletResponse.SC_FORBIDDEN);
+        }
+        Account userAdd = accountRepository.findById(user.getId()).orElseThrow(() ->
+                new HttpException(10004, "User not found.", HttpServletResponse.SC_NOT_FOUND)
+        );
+        if(Objects.nonNull(userAdd.getUnit())){
+            throw new HttpException(10007, "User already belongs to another unit.", HttpServletResponse.SC_BAD_REQUEST);
+        }
+        if(Objects.nonNull(unit.getAccountListOfUnit())) {
+            List<com.project.EWCM.pojo.Account> accountList = unit.getAccountListOfUnit();
+            accountList.add(user);
+            unit.setAccountListOfUnit(accountList);
+        }else{
+            List<com.project.EWCM.pojo.Account> accountList = new ArrayList<>();
+            accountList.add(user);
+            unit.setAccountListOfUnit(accountList);
+        }
+        unitRepository.save(unit);
+        com.project.EWCM.pojo.Unit unitOfAccount = new com.project.EWCM.pojo.Unit(unit.getId(), unit.getUnitName(), unit.getUnitLevel());
+        userAdd.setUnit(unitOfAccount);
+        accountRepository.save(userAdd);
+        affectedRowsDto.setAffectedRows(1);
+        logger.info("EWCD-Update Unit Data: " + unit.toString());
+        return affectedRowsDto;
+    }
+
+    public AffectedRowsDto removeUserFromUnit(String username, ObjectId id, com.project.EWCM.pojo.Account user) {
+        AffectedRowsDto affectedRowsDto = new AffectedRowsDto();
+        Unit unit = unitRepository.findById(id).orElseThrow(() ->
+                new HttpException(10004, "Unit not found.", HttpServletResponse.SC_NOT_FOUND)
+        );
+
+        Account account = accountRepository.findByUsername(username).orElseThrow(() ->
+                new HttpException(10004, "User not found.", HttpServletResponse.SC_NOT_FOUND)
+        );
+
+        // Chỉ xóa người dùng khỏi đơn vị do mình tạo ra
+        if (!unit.getCreatedBy().getId().equals(account.getId()) && !unit.getUnitHead().getId().equals(account.getId())) {
+            throw new HttpException(10003, "Users are not allowed.", HttpServletResponse.SC_FORBIDDEN);
+        }
+        List<com.project.EWCM.pojo.Account> accountList = unit.getAccountListOfUnit();
+        if(Objects.isNull(accountList)){
+            throw new HttpException(10003, "Account list is null", HttpServletResponse.SC_BAD_REQUEST);
+        }
+
+        accountList.removeIf(acc -> acc.getId().equals(user.getId()));
+        unit.setAccountListOfUnit(accountList);
+        unitRepository.save(unit);
+
+        Account userRemove = accountRepository.findById(user.getId()).orElseThrow(() ->
+                new HttpException(10004, "User not found.", HttpServletResponse.SC_NOT_FOUND)
+        );
+        userRemove.setUnit(null);
+        accountRepository.save(userRemove);
+        affectedRowsDto.setAffectedRows(1);
+        logger.info("EWCD-Update Unit Data: " + unit.toString());
         return affectedRowsDto;
     }
 }

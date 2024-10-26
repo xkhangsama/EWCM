@@ -1,5 +1,6 @@
 package com.project.EWCM.DTO;
 
+import com.project.EWCM.pojo.Unit;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -25,7 +26,7 @@ public class AccountDto {
     private String email;
     @NotBlank(message = "Type is required")
     private String type;
-    private UnitDto unit;
+    private Unit unit;
     private String temp;
 
 }
