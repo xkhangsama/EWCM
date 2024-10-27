@@ -14,11 +14,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 @Service
 public class UnitService {
@@ -34,20 +32,15 @@ public class UnitService {
     Logger logger = LoggerFactory.getLogger(UnitService.class);
 
     public IdDto createUnit(UnitRequestDto unitDto, String username) {
-        Optional<Account> optional = accountRepository.findByUsername(username);
-        int levelOfUnitAccount = 0;
-        //Xử lý nếu quyền admin thì tạo đơn vị cấp lớn nhất (cấp 1) còn không thì tạo đơn vị cấp tiếp theo của đơn vị hiện tại của người tạo
-        if(!optional.get().getType().equals("admin")){
-            levelOfUnitAccount = optional.get().getUnit().getUnitLevel();
-            if(levelOfUnitAccount >= maxLevel){
-                throw new HttpException(10003,"Users are not allowed to create units of a lower level.", HttpServletResponse.SC_BAD_REQUEST);
-            }
-        }
-
         Account account = accountRepository.findByUsername(username).orElseThrow(() ->
                 new HttpException(10004, "User not found.", HttpServletResponse.SC_NOT_FOUND)
         );
-
+        int levelOfUnitAccount = getAccountUnitLevel(account);
+        Date currentDate = new Date();
+        //Xử lý nếu quyền admin thì tạo đơn vị cấp lớn nhất (cấp 1) còn không thì tạo đơn vị cấp tiếp theo của đơn vị hiện tại của người tạo
+        if(!account.getType().equals("admin")){
+            validateAccountCanCreateUnit(account,levelOfUnitAccount);
+        }
 
         Unit newUnit = new Unit();
         if(Objects.nonNull(unitDto.getUnitName())){
@@ -80,6 +73,8 @@ public class UnitService {
         createdBy.setType(account.getType());
 
         newUnit.setCreatedBy(createdBy);
+        newUnit.setCreatedDate(currentDate);
+        newUnit.setUpdatedDate(currentDate);
 
         // set unit level = current unit level +1
         newUnit.setUnitLevel(levelOfUnitAccount + 1);
@@ -95,9 +90,36 @@ public class UnitService {
         return new IdDto(newUnit.getId());
     }
 
+    // Hàm phụ để lấy cấp đơn vị hiện tại của tài khoản
+    private int getAccountUnitLevel(Account account) {
+        return (Objects.nonNull(account.getUnit()) && Objects.nonNull(account.getUnit().getUnitLevel()))
+                ? account.getUnit().getUnitLevel()
+                : 0;
+    }
+
+    // Hàm phụ để kiểm tra xem tài khoản có quyền tạo đơn vị hay không
+    private void validateAccountCanCreateUnit(Account account, int levelOfUnitAccount) {
+        if (!account.isHead()) {
+            throw new HttpException(10003, "Users are not allowed to create units", HttpServletResponse.SC_BAD_REQUEST);
+        }
+
+        if (levelOfUnitAccount >= maxLevel) {
+            throw new HttpException(10003, "Users are not allowed to create units of a lower level.", HttpServletResponse.SC_BAD_REQUEST);
+        }
+    }
+
     public AffectedRowsDto updateUnit(UnitUpdateRequestDto unitUpdateRequestDto, String username, ObjectId id) {
         AffectedRowsDto affectedRowsDto = new AffectedRowsDto();
+        Account account = accountRepository.findByUsername(username).orElseThrow(() ->
+                new HttpException(10004, "User not found.", HttpServletResponse.SC_NOT_FOUND)
+        );
+
         Unit oldUnit = unitRepository.findById(id).get();
+        //Chỉ cập nhật được thông tin đơn vị do mình tạo ra hoặc mình là trưởng đơn vị
+        if (!oldUnit.getCreatedBy().getId().equals(account.getId()) && !oldUnit.getUnitHead().getId().equals(account.getId())) {
+            throw new HttpException(10003, "Users are not allowed.", HttpServletResponse.SC_FORBIDDEN);
+        }
+        Date currentDate = new Date();
         if(Objects.nonNull(unitUpdateRequestDto.getUnitName())){
             oldUnit.setUnitName(unitUpdateRequestDto.getUnitName());
         }
@@ -116,6 +138,14 @@ public class UnitService {
         if(Objects.nonNull(unitUpdateRequestDto.getAccountListOfUnit())){
             oldUnit.setAccountListOfUnit(unitUpdateRequestDto.getAccountListOfUnit());
         }
+
+        oldUnit.setCreatedDate(currentDate);
+        oldUnit.setUpdatedDate(currentDate);
+
+        com.project.EWCM.pojo.Account updatedBy =
+                new com.project.EWCM.pojo.Account(account.getId(),account.getUsername(),account.getFullName(), account.getEmail(), account.getType());
+        oldUnit.setUpdatedBy(updatedBy);
+
         Unit updatedUnit = unitRepository.save(oldUnit);
         affectedRowsDto.setAffectedRows(1);
         logger.info("EWCD-Update Unit Data: " + updatedUnit.toString());
@@ -138,7 +168,7 @@ public class UnitService {
 
     public UnitDto getUnitDetail(String username, ObjectId id) {
         try {
-            Unit unitDetail = getUnitById(id);
+            Unit unitDetail = findUnitById(id);
 
             Account account = accountRepository.findByUsername(username).orElseThrow(() ->
                     new HttpException(10004, "User not found.", HttpServletResponse.SC_NOT_FOUND)
@@ -169,7 +199,7 @@ public class UnitService {
 
     public AffectedRowsDto updateUnitHead(String username, ObjectId id, com.project.EWCM.pojo.Account unitHead) {
         AffectedRowsDto affectedRowsDto = new AffectedRowsDto();
-        Unit unit = getUnitById(id);
+        Unit unit = findUnitById(id);
 
         Account account = accountRepository.findByUsername(username).orElseThrow(() ->
                 new HttpException(10004, "User not found.", HttpServletResponse.SC_NOT_FOUND)
@@ -203,7 +233,7 @@ public class UnitService {
 
     public AffectedRowsDto addUserIntoUnit(String username, ObjectId id, com.project.EWCM.pojo.Account user) {
         AffectedRowsDto affectedRowsDto = new AffectedRowsDto();
-        Unit unit = getUnitById(id);
+        Unit unit = findUnitById(id);
 
         Account account = accountRepository.findByUsername(username).orElseThrow(() ->
                 new HttpException(10004, "User not found.", HttpServletResponse.SC_NOT_FOUND)
@@ -236,7 +266,7 @@ public class UnitService {
 
     public AffectedRowsDto removeUserFromUnit(String username, ObjectId id, com.project.EWCM.pojo.Account user) {
         AffectedRowsDto affectedRowsDto = new AffectedRowsDto();
-        Unit unit = getUnitById(id);
+        Unit unit = findUnitById(id);
 
         Account account = accountRepository.findByUsername(username).orElseThrow(() ->
                 new HttpException(10004, "User not found.", HttpServletResponse.SC_NOT_FOUND)
@@ -263,7 +293,7 @@ public class UnitService {
         return affectedRowsDto;
     }
 
-    private Unit getUnitById(ObjectId id) {
+    public Unit findUnitById(ObjectId id) {
         return unitRepository.findById(id)
                 .orElseThrow(() -> new HttpException(10004, "Unit not found.", HttpServletResponse.SC_NOT_FOUND));
     }
@@ -282,6 +312,24 @@ public class UnitService {
         result.setUnitLevel(unitDetail.getUnitLevel());
         result.setUnitHead(unitDetail.getUnitHead());
         result.setAccountListOfUnit(unitDetail.getAccountListOfUnit());
+        return result;
+    }
+
+    public List<UnitDto> getAll() {
+        List<Unit> unitList = unitRepository.findAll();
+        List<UnitDto> result = unitRepository.findAll().stream()
+                .map(unit -> {
+                    UnitDto dto = new UnitDto();
+                    dto.setUnitName(unit.getUnitName());
+                    dto.setUnitAddress(unit.getUnitAddress());
+                    dto.setUnitNumber(unit.getUnitNumber());
+                    dto.setUnitPhoneNumber(unit.getUnitPhoneNumber());
+                    dto.setUnitLevel(unit.getUnitLevel());
+                    dto.setUnitHead(unit.getUnitHead());
+                    dto.setAccountListOfUnit(unit.getAccountListOfUnit());
+                    return dto;
+                })
+                .collect(Collectors.toList());
         return result;
     }
 }

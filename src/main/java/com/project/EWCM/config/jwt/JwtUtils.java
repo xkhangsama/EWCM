@@ -2,6 +2,9 @@ package com.project.EWCM.config.jwt;
 
 import java.security.Key;
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.project.EWCM.config.services.UserDetailsImpl;
 import org.slf4j.Logger;
@@ -30,6 +33,7 @@ public class JwtUtils {
 
         return Jwts.builder()
                 .setSubject((userPrincipal.getUsername()))
+                .claim("roles", userPrincipal.getAuthorities())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
                 .signWith(key(), SignatureAlgorithm.HS256)
@@ -70,5 +74,15 @@ public class JwtUtils {
         }
 
         return false;
+    }
+
+    public List<String> getRolesFromJwtToken(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(jwtSecret)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+        List<Map<String, String>> roles = (List<Map<String, String>>) claims.get("roles");
+        return roles.stream().map(role -> role.get("authority")).collect(Collectors.toList());
     }
 }

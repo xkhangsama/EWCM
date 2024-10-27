@@ -109,4 +109,11 @@ public class AccountService {
         logger.info("EWCD-Get Account List: " + result.toString());
         return result;
     }
+
+    public Account findAccountByUsername(String username){
+        Account account = accountRepository.findByUsername(username).orElseThrow(() ->
+                new HttpException(10004, "User not found.", HttpServletResponse.SC_NOT_FOUND)
+        );
+        return account;
+    }
 }

@@ -3,15 +3,20 @@ package com.project.EWCM.Controller;
 import com.project.EWCM.DTO.*;
 import com.project.EWCM.Service.UnitService;
 import com.project.EWCM.config.jwt.JwtUtils;
+import com.project.EWCM.exception.HttpException;
 import com.project.EWCM.pojo.Account;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/unit")
@@ -112,6 +117,23 @@ public class UnitController {
         String username = jwtUtils.getUserNameFromJwtToken(token);
         AffectedRowsDto affectedRowsDto = unitService.removeUserFromUnit(username, id, user);
         return ResponseEntity.ok(affectedRowsDto);
+    }
+
+    @GetMapping()
+    public ResponseEntity<Object> getAll(HttpServletRequest request){
+        String requestPath = request.getMethod() + " " + request.getRequestURI() + (request.getQueryString() != null ? "?" + request.getQueryString() : "");
+        logger.info("EWCD-Request: " + requestPath);
+        // Lấy token từ header Authorization
+        String token = request.getHeader("Authorization").substring(7); // Lấy token sau "Bearer "
+
+        List<String> roles = jwtUtils.getRolesFromJwtToken(token);
+        // Kiểm tra xem người dùng có role admin không
+        if (!roles.contains("admin")) {
+            throw new HttpException(10003, "Forbidden: You do not have permission to access this resource", HttpServletResponse.SC_FORBIDDEN);
+        }
+
+        List<UnitDto> unitDtoList = unitService.getAll();
+        return ResponseEntity.ok(unitDtoList);
     }
 
 }
