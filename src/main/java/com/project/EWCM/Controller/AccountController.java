@@ -63,9 +63,9 @@ public class AccountController {
 
             return ResponseEntity.ok(new JwtResponseDto(jwt,"Bearer",jwtUtils.getJwtExpiration(jwt)));
         } catch (BadCredentialsException e) {
-            throw new HttpException(10006,"Tài khoản hoặc mật khẩu không đúng.", HttpServletResponse.SC_UNAUTHORIZED);
+            throw new HttpException(10006,"Username or password is incorrect.", HttpServletResponse.SC_UNAUTHORIZED);
         } catch (Exception e) {
-            throw new HttpException(10005,"Đã có lỗi xảy ra, vui lòng thử lại.", HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            throw new HttpException(10005,"An error occurred, please try again.", HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
     }
 
