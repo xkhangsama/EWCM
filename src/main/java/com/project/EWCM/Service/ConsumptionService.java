@@ -36,7 +36,7 @@ public class ConsumptionService {
 
         Unit unit = unitService.findUnitById(consumptionRequestDto.getUnit().getId());
 
-        if(!unit.getUnitHead().getId().equals(account.getId()) && !unit.getCreatedBy().getId().equals(account.getId())){
+        if(!unit.getUnitHead().getId().equals(account.getId())){
             throw new HttpException(10003, "Users are not allowed.", HttpServletResponse.SC_FORBIDDEN);
         }
 
@@ -69,17 +69,26 @@ public class ConsumptionService {
         ConsumptionDetailResponseDto result = new ConsumptionDetailResponseDto();
         Account account = accountService.findAccountByUsername(username);
         Consumption consumption = findConsumptionById(id);
-        Unit unit = unitService.findUnitById(consumption.getUnit().getId());
+//        Unit unit = unitService.findUnitById(consumption.getUnit().getId());
+
+        if(!account.isHead()){
+            throw new HttpException(10003, "Users are not allowed.", HttpServletResponse.SC_FORBIDDEN);
+        }
 
         // Lấy danh sách đơn vị cấp dưới dựa trên ID của đơn vị hiện tại của người muốn xem thông tin báo cáo
         List<Unit> accessibleUnits = getAccessibleUnits(account.getUnit().getId());
 
-
-        //Chỉ xem được chi tiết báo cáo khi tạo ra nó hoặc trưởng đơn vị của báo cáo đó
-        if(!consumption.getCreatedBy().getId().equals(account.getId())
-                && !unit.getUnitHead().getId().equals(account.getId())){
+        if(!accessibleUnits.contains(consumption.getUnit().getId())){
             throw new HttpException(10003, "Users are not allowed.", HttpServletResponse.SC_FORBIDDEN);
         }
+
+        //Trưởng đơn vị là đơn vị cha của đơn vị báo cáo thì có thể xem chi tiết báo cáo
+
+        //Chỉ xem được chi tiết báo cáo khi tạo ra nó hoặc trưởng đơn vị của báo cáo đó
+//        if(!consumption.getCreatedBy().getId().equals(account.getId())
+//                && !unit.getUnitHead().getId().equals(account.getId())){
+//            throw new HttpException(10003, "Users are not allowed.", HttpServletResponse.SC_FORBIDDEN);
+//        }
         result = mappingConsumption(consumption);
         logger.info("EWCM-Get Consumption Detail: " + result.toString());
         return result;
@@ -94,8 +103,8 @@ public class ConsumptionService {
         while (!queue.isEmpty()) {
             Unit unit = queue.poll();
             accessibleUnits.add(unit);
-//            List<Unit> subUnits = unitRepository.findByParentUnitId(unit.getId());  // Bổ sung thêm parentUnitId cho Unit collection
-//            queue.addAll(subUnits);
+            List<Unit> subUnits = unitService.findByParentUnitId(unit.getId());  // Bổ sung thêm parentUnitId cho Unit collection
+            queue.addAll(subUnits);
         }
         queue.add(currentUnit);
         return accessibleUnits;
