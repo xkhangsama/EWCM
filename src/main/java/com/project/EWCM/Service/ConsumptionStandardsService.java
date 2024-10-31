@@ -60,6 +60,9 @@ public class ConsumptionStandardsService {
 
         ConsumptionStandards consumptionStandards = findConsumptionStandardsById(id);
 
+        if(Objects.nonNull(consumptionStandards.getId())){
+            result.setId(consumptionStandards.getId());
+        }
         if(Objects.nonNull(consumptionStandards.getUnitLevel())){
             result.setUnitLevel(consumptionStandards.getUnitLevel());
         }
@@ -69,6 +72,7 @@ public class ConsumptionStandardsService {
         if(Objects.nonNull(consumptionStandards.getWaterConsumptionMax())){
             result.setWaterConsumptionMax(consumptionStandards.getWaterConsumptionMax());
         }
+
         logger.info("EWCM-Get Consumption Standards Data: " + result.toString());
         return result;
     }
