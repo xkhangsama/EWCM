@@ -342,4 +342,24 @@ public class UnitService {
         unitList = unitRepository.findByParentUnitId(parentUnitId);
         return unitList;
     }
+
+    public List<ObjectId> getAccessibleUnits(ObjectId accountUnitId) {
+        List<Unit> accessibleUnits = new ArrayList<>();
+        Queue<Unit> queue = new LinkedList<>();
+
+        Unit currentUnit = findUnitById(accountUnitId);
+        queue.add(currentUnit);
+        // Sử dụng BFS để duyệt qua tất cả các đơn vị cấp dưới
+        while (!queue.isEmpty()) {
+            Unit unit = queue.poll();
+            accessibleUnits.add(unit);
+            List<Unit> subUnits = findByParentUnitId(unit.getId());  // Bổ sung thêm parentUnitId cho Unit collection
+            queue.addAll(subUnits);
+        }
+        // Tạo danh sách chứa ID của các đơn vị cấp dưới
+        List<ObjectId> accessibleUnitIds = accessibleUnits.stream()
+                .map(Unit::getId)
+                .collect(Collectors.toList());
+        return accessibleUnitIds;
+    }
 }

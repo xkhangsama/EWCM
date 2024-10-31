@@ -12,6 +12,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/consumption")
 public class ConsumptionController {
@@ -73,5 +75,18 @@ public class ConsumptionController {
         String username = jwtUtils.getUserNameFromJwtToken(token);
         AffectedRowsDto affectedRows = consumptionService.deleteConsumption( username, id);
         return ResponseEntity.ok(affectedRows);
+    }
+
+    @GetMapping("/--get-consumption-of-unit")
+    public ResponseEntity<Object> getConsumptionOfUnit(HttpServletRequest request, @RequestParam(value = "unitId", required = false) ObjectId unitId){
+        String requestPath = request.getMethod() + " " + request.getRequestURI() + (request.getQueryString() != null ? "?" + request.getQueryString() : "");
+        logger.info("EWCM-Request: " + requestPath);
+        // Lấy token từ header Authorization
+        String token = request.getHeader("Authorization").substring(7); // Lấy token sau "Bearer "
+
+        // Lấy thông tin từ token
+        String username = jwtUtils.getUserNameFromJwtToken(token);
+        List<ConsumptionDetailResponseDto> consumptionDetail = consumptionService.getConsumptionOfUnit(username, unitId);
+        return ResponseEntity.ok(consumptionDetail);
     }
 }

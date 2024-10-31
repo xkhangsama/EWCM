@@ -17,6 +17,5 @@ public class ConsumptionRequestDto {
 
     private ElectricityConsumption electricityConsumption;
     private WaterConsumption waterConsumption;
-    @NotNull(message = "Unit cannot be null")
-    private Unit unit;
+
 }

@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class ConsumptionService {
@@ -34,7 +35,7 @@ public class ConsumptionService {
 
         Account account = accountService.findAccountByUsername(username);
 
-        Unit unit = unitService.findUnitById(consumptionRequestDto.getUnit().getId());
+        Unit unit = unitService.findUnitById(account.getUnit().getId());
 
         if(!unit.getUnitHead().getId().equals(account.getId())){
             throw new HttpException(10003, "Users are not allowed.", HttpServletResponse.SC_FORBIDDEN);
@@ -49,8 +50,9 @@ public class ConsumptionService {
             newConsumption.setWaterConsumption(consumptionRequestDto.getWaterConsumption());
         }
 
-        if(Objects.nonNull(consumptionRequestDto.getUnit())){
-            newConsumption.setUnit(consumptionRequestDto.getUnit());
+        if(Objects.nonNull(unit)){
+            com.project.EWCM.pojo.Unit unitConsumption = new com.project.EWCM.pojo.Unit(unit.getId(), unit.getUnitName(), unit.getUnitLevel());
+            newConsumption.setUnit(unitConsumption);
         }
 
         newConsumption.setCreatedDate(currentDate);
@@ -69,45 +71,22 @@ public class ConsumptionService {
         ConsumptionDetailResponseDto result = new ConsumptionDetailResponseDto();
         Account account = accountService.findAccountByUsername(username);
         Consumption consumption = findConsumptionById(id);
-//        Unit unit = unitService.findUnitById(consumption.getUnit().getId());
 
         if(!account.isHead()){
             throw new HttpException(10003, "Users are not allowed.", HttpServletResponse.SC_FORBIDDEN);
         }
 
         // Lấy danh sách đơn vị cấp dưới dựa trên ID của đơn vị hiện tại của người muốn xem thông tin báo cáo
-        List<Unit> accessibleUnits = getAccessibleUnits(account.getUnit().getId());
+        List<ObjectId> accessibleUnits = unitService.getAccessibleUnits(account.getUnit().getId());
 
+        //Trưởng đơn vị là đơn vị cha của đơn vị báo cáo thì có thể xem chi tiết báo cáo
         if(!accessibleUnits.contains(consumption.getUnit().getId())){
             throw new HttpException(10003, "Users are not allowed.", HttpServletResponse.SC_FORBIDDEN);
         }
 
-        //Trưởng đơn vị là đơn vị cha của đơn vị báo cáo thì có thể xem chi tiết báo cáo
-
-        //Chỉ xem được chi tiết báo cáo khi tạo ra nó hoặc trưởng đơn vị của báo cáo đó
-//        if(!consumption.getCreatedBy().getId().equals(account.getId())
-//                && !unit.getUnitHead().getId().equals(account.getId())){
-//            throw new HttpException(10003, "Users are not allowed.", HttpServletResponse.SC_FORBIDDEN);
-//        }
         result = mappingConsumption(consumption);
         logger.info("EWCM-Get Consumption Detail: " + result.toString());
         return result;
-    }
-
-    private List<Unit> getAccessibleUnits(ObjectId accountUnitId) {
-        List<Unit> accessibleUnits = new ArrayList<>();
-        Queue<Unit> queue = new LinkedList<>();
-
-        Unit currentUnit = unitService.findUnitById(accountUnitId);
-        // Sử dụng BFS để duyệt qua tất cả các đơn vị cấp dưới
-        while (!queue.isEmpty()) {
-            Unit unit = queue.poll();
-            accessibleUnits.add(unit);
-            List<Unit> subUnits = unitService.findByParentUnitId(unit.getId());  // Bổ sung thêm parentUnitId cho Unit collection
-            queue.addAll(subUnits);
-        }
-        queue.add(currentUnit);
-        return accessibleUnits;
     }
 
     private Consumption findConsumptionById(ObjectId id){
@@ -193,5 +172,44 @@ public class ConsumptionService {
 
         affectedRowsDto.setAffectedRows(1);
         return affectedRowsDto;
+    }
+
+    public List<ConsumptionDetailResponseDto> getConsumptionOfUnit(String username, ObjectId unitId) {
+        List<ConsumptionDetailResponseDto> result = new ArrayList<>();
+        List<Consumption> consumptionList = new ArrayList<>();
+        Account account = accountService.findAccountByUsername(username);
+
+        boolean checkGetAll = false;
+
+        if(!account.isHead()){
+            throw new HttpException(10003, "Users are not allowed.", HttpServletResponse.SC_FORBIDDEN);
+        }
+
+        // Lấy danh sách đơn vị cấp dưới dựa trên ID của đơn vị hiện tại của người muốn xem thông tin báo cáo
+        List<ObjectId> accessibleUnits = unitService.getAccessibleUnits(account.getUnit().getId());
+
+
+
+        //Lấy thông tin comsumption toàn bộ đơn vị con của tài khoản nêú request không có unitId
+        if(Objects.isNull(unitId)){
+            unitId = account.getUnit().getId();
+            checkGetAll = true;
+        }
+
+        //Đơn vị muốn lấy báo cáo nằm trong cây đơn vị mà user này quản lý
+        if(!accessibleUnits.contains(unitId)){
+            throw new HttpException(10003, "Users are not allowed.", HttpServletResponse.SC_FORBIDDEN);
+        }
+        if(checkGetAll){
+            consumptionList = consumptionRepository.findByUnitIdIn(accessibleUnits);
+        }else {
+            consumptionList = consumptionRepository.findByUnitId(unitId);
+        }
+
+        result = consumptionList.stream()
+                .map(this::mappingConsumption)
+                .collect(Collectors.toList());
+
+        return result;
     }
 }
