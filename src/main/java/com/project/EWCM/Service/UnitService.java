@@ -24,7 +24,10 @@ public class UnitService {
     private UnitRepository unitRepository;
 
     @Autowired
-    AccountRepository accountRepository;
+    private AccountRepository accountRepository;
+
+    @Autowired
+    private AccountService accountService;
 
     @Value("${project.app.maxLevel}")
     private int maxLevel;
@@ -32,9 +35,7 @@ public class UnitService {
     Logger logger = LoggerFactory.getLogger(UnitService.class);
 
     public IdDto createUnit(UnitRequestDto unitDto, String username) {
-        Account account = accountRepository.findByUsername(username).orElseThrow(() ->
-                new HttpException(10004, "User not found.", HttpServletResponse.SC_NOT_FOUND)
-        );
+        Account account = accountService.findAccountByUsername(username);
         int levelOfUnitAccount = getAccountUnitLevel(account);
         Date currentDate = new Date();
         //Xử lý nếu quyền admin thì tạo đơn vị cấp lớn nhất (cấp 1) còn không thì tạo đơn vị cấp tiếp theo của đơn vị hiện tại của người tạo
@@ -63,6 +64,9 @@ public class UnitService {
         if(Objects.nonNull(unitDto.getAccountListOfUnit())){
             newUnit.setAccountListOfUnit(unitDto.getAccountListOfUnit());
         }
+        if(Objects.nonNull(account.getUnit())){
+            newUnit.setParentUnit(account.getUnit());
+        }
 
         //Mapping dữ liệu tài khoản tạo
         com.project.EWCM.pojo.Account createdBy = new com.project.EWCM.pojo.Account();
@@ -86,7 +90,7 @@ public class UnitService {
         accountRepository.save(accountHead);
 //        updateAccountHead(accountHead.getId(), newUnit);
 
-        logger.info("EWCD-Saved Unit Data: " + newUnit.toString());
+        logger.info("EWCM-Saved Unit Data: " + newUnit.toString());
         return new IdDto(newUnit.getId());
     }
 
@@ -148,7 +152,7 @@ public class UnitService {
 
         Unit updatedUnit = unitRepository.save(oldUnit);
         affectedRowsDto.setAffectedRows(1);
-        logger.info("EWCD-Update Unit Data: " + updatedUnit.toString());
+        logger.info("EWCM-Update Unit Data: " + updatedUnit.toString());
         return affectedRowsDto;
     }
 
@@ -160,9 +164,9 @@ public class UnitService {
             affectedRows.setAffectedRows(1);
         }else{
             affectedRows.setAffectedRows(0);
-            affectedRows.setError("Không tìm thấy đơn vị.");
+            affectedRows.setError("Unit not found.");
         }
-        logger.info("EWCD-Delete Unit Data: " + oldUnit.toString());
+        logger.info("EWCM-Delete Unit Data: " + oldUnit.toString());
         return affectedRows;
     }
 
@@ -187,11 +191,11 @@ public class UnitService {
 
             // Tạo DTO
             UnitDto result = mapToUnitDto(unitDetail);
-            logger.info("EWCD-Get Unit Detail: " + result.toString());
+            logger.info("EWCM-Get Unit Detail: " + result.toString());
             return result;
 
         } catch (HttpException e) {
-            logger.info("EWCD-Get Unit Detail: " + e.getMessage());
+            logger.info("EWCM-Get Unit Detail: " + e.getMessage());
             throw new HttpException(10005, e.getMessage(), HttpServletResponse.SC_BAD_REQUEST);
         }
     }
@@ -219,7 +223,7 @@ public class UnitService {
 //        accountHead.setUnit(unitOfAccount);
 //        accountRepository.save(accountHead);
         affectedRowsDto.setAffectedRows(1);
-        logger.info("EWCD-Update Unit Data: " + unit.toString());
+        logger.info("EWCM-Update Unit Data: " + unit.toString());
         return affectedRowsDto;
     }
 
@@ -260,7 +264,7 @@ public class UnitService {
         userAdd.setUnit(unitOfAccount);
         accountRepository.save(userAdd);
         affectedRowsDto.setAffectedRows(1);
-        logger.info("EWCD-Update Unit Data: " + unit.toString());
+        logger.info("EWCM-Update Unit Data: " + unit.toString());
         return affectedRowsDto;
     }
 
@@ -289,7 +293,7 @@ public class UnitService {
         userRemove.setUnit(null);
         accountRepository.save(userRemove);
         affectedRowsDto.setAffectedRows(1);
-        logger.info("EWCD-Update Unit Data: " + unit.toString());
+        logger.info("EWCM-Update Unit Data: " + unit.toString());
         return affectedRowsDto;
     }
 
@@ -331,5 +335,11 @@ public class UnitService {
                 })
                 .collect(Collectors.toList());
         return result;
+    }
+
+    public List<Unit> findByParentUnitId(ObjectId parentUnitId) {
+        List<Unit> unitList = new ArrayList<>();
+        unitList = unitRepository.findByParentUnitId(parentUnitId);
+        return unitList;
     }
 }

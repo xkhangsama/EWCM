@@ -29,6 +29,7 @@ public class Unit {
     private List<Account> accountListOfUnit;
     private Account unitHead;
     private int unitLevel;
+    private com.project.EWCM.pojo.Unit parentUnit;
     private Date createdDate;
     private Date updatedDate;
     private Account createdBy;
