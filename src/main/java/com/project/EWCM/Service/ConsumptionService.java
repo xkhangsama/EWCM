@@ -3,6 +3,7 @@ package com.project.EWCM.Service;
 import com.project.EWCM.DTO.*;
 import com.project.EWCM.Document.Account;
 import com.project.EWCM.Document.Consumption;
+import com.project.EWCM.Document.ConsumptionStandards;
 import com.project.EWCM.Document.Unit;
 import com.project.EWCM.exception.HttpException;
 import com.project.EWCM.repository.ConsumptionRepository;
@@ -24,8 +25,8 @@ public class ConsumptionService {
     private AccountService accountService;
     @Autowired
     private UnitService unitService;
-
-
+    @Autowired
+    private ConsumptionStandardsService consumptionStandardsService;
     Logger logger = LoggerFactory.getLogger(ConsumptionService.class);
 
     public IdDto createConsumption(ConsumptionRequestDto consumptionRequestDto, String username) {
@@ -36,18 +37,22 @@ public class ConsumptionService {
         Account account = accountService.findAccountByUsername(username);
 
         Unit unit = unitService.findUnitById(account.getUnit().getId());
+        int unitLevel = unit.getUnitLevel();
 
         if(!unit.getUnitHead().getId().equals(account.getId())){
             throw new HttpException(10003, "Users are not allowed.", HttpServletResponse.SC_FORBIDDEN);
         }
 
+        ConsumptionStandards standards = consumptionStandardsService.findConsumpotionStandardsByLevel(unitLevel);
 
         if(Objects.nonNull(consumptionRequestDto.getElectricityConsumption())){
             newConsumption.setElectricityConsumption(consumptionRequestDto.getElectricityConsumption());
+            newConsumption.setElectricityExceedAmount(standards.getElectricityConsumptionMax().getNumber()-consumptionRequestDto.getElectricityConsumption().getNumber());
         }
 
         if(Objects.nonNull(consumptionRequestDto.getWaterConsumption())){
             newConsumption.setWaterConsumption(consumptionRequestDto.getWaterConsumption());
+            newConsumption.setWaterExceedAmount(standards.getWaterConsumptionMax().getNumber()-consumptionRequestDto.getWaterConsumption().getNumber());
         }
 
         if(Objects.nonNull(unit)){
@@ -109,6 +114,12 @@ public class ConsumptionService {
         if(Objects.nonNull(consumption.getUnit())){
             result.setUnit(consumption.getUnit());
         }
+        if(Objects.nonNull(consumption.getElectricityExceedAmount())){
+            result.setElectricityExceedAmount(consumption.getElectricityExceedAmount());
+        }
+        if(Objects.nonNull(consumption.getWaterExceedAmount())){
+            result.setWaterExceedAmount(consumption.getWaterExceedAmount());
+        }
         if(Objects.nonNull(consumption.getCreatedBy())){
             result.setCreatedBy(consumption.getCreatedBy());
         }
@@ -118,6 +129,7 @@ public class ConsumptionService {
         if(Objects.nonNull(consumption.getCreatedDate())){
             result.setCreatedDate(consumption.getCreatedDate());
         }
+
         return result;
     }
 
@@ -129,6 +141,7 @@ public class ConsumptionService {
         Consumption oldConsumption = findConsumptionById(id);
 
         Unit unit = unitService.findUnitById(oldConsumption.getUnit().getId());
+        int unitLevel = unit.getUnitLevel();
 
         if(!oldConsumption.getCreatedBy().getId().equals(account.getId())
                 && !unit.getUnitHead().getId().equals(account.getId())
@@ -136,12 +149,16 @@ public class ConsumptionService {
             throw new HttpException(10003, "Users are not allowed.", HttpServletResponse.SC_FORBIDDEN);
         }
 
+        ConsumptionStandards standards = consumptionStandardsService.findConsumpotionStandardsByLevel(unitLevel);
+
         if(Objects.nonNull(consumptionUpdateRequestDto.getElectricityConsumption())){
             oldConsumption.setElectricityConsumption(consumptionUpdateRequestDto.getElectricityConsumption());
+            oldConsumption.setElectricityExceedAmount(standards.getElectricityConsumptionMax().getNumber()-consumptionUpdateRequestDto.getElectricityConsumption().getNumber());
         }
 
         if(Objects.nonNull(consumptionUpdateRequestDto.getWaterConsumption())){
             oldConsumption.setWaterConsumption(consumptionUpdateRequestDto.getWaterConsumption());
+            oldConsumption.setWaterExceedAmount(standards.getWaterConsumptionMax().getNumber()-consumptionUpdateRequestDto.getWaterConsumption().getNumber());
         }
         com.project.EWCM.pojo.Account updatedBy =
                 new com.project.EWCM.pojo.Account(account.getId(),account.getUsername(),account.getFullName(), account.getEmail(), account.getType());
@@ -169,7 +186,7 @@ public class ConsumptionService {
         }
 
         consumptionRepository.deleteById(id);
-
+        logger.info("EWCM-Delete Consumption : " + consumption.toString());
         affectedRowsDto.setAffectedRows(1);
         return affectedRowsDto;
     }
@@ -187,8 +204,9 @@ public class ConsumptionService {
 
         // Lấy danh sách đơn vị cấp dưới dựa trên ID của đơn vị hiện tại của người muốn xem thông tin báo cáo
         List<ObjectId> accessibleUnits = unitService.getAccessibleUnits(account.getUnit().getId());
-
-
+//        .stream()
+//                .filter(id -> unitService.getUnitLevel(id) <= account.getUnit().getUnitLevel()) // Lọc đơn vị cấp dưới
+//                .collect(Collectors.toList());
 
         //Lấy thông tin comsumption toàn bộ đơn vị con của tài khoản nêú request không có unitId
         if(Objects.isNull(unitId)){
@@ -200,16 +218,85 @@ public class ConsumptionService {
         if(!accessibleUnits.contains(unitId)){
             throw new HttpException(10003, "Users are not allowed.", HttpServletResponse.SC_FORBIDDEN);
         }
+
+        List<ObjectId> subUnit = unitService.getAccessibleUnits(unitId);
         if(checkGetAll){
             consumptionList = consumptionRepository.findByUnitIdIn(accessibleUnits);
         }else {
-            consumptionList = consumptionRepository.findByUnitId(unitId);
+            consumptionList = consumptionRepository.findByUnitIdIn(subUnit);
         }
 
         result = consumptionList.stream()
                 .map(this::mappingConsumption)
                 .collect(Collectors.toList());
+        logger.info("EWCM-Get Consumption of Unit: " + result.toString());
 
         return result;
+    }
+
+    public List<ConsumptionTotalDto> getConsumptionTotal(String username) {
+        List<ConsumptionTotalDto> consumptionTotalDtoList = new ArrayList<>();
+        List<Consumption> consumptionList = new ArrayList<>();
+        Account account = accountService.findAccountByUsername(username);
+
+        if(!account.isHead()){
+            throw new HttpException(10003, "Users are not allowed.", HttpServletResponse.SC_FORBIDDEN);
+        }
+
+        int currentLevel = account.getUnit().getUnitLevel();
+
+        // Lấy danh sách đơn vị cấp dưới dựa trên ID của đơn vị hiện tại của người muốn xem thông tin báo cáo
+        List<ObjectId> accessibleUnits = unitService.getAccessibleUnits(account.getUnit().getId());
+
+        //Đơn vị muốn lấy báo cáo nằm trong cây đơn vị mà user này quản lý
+        if(!accessibleUnits.contains(account.getUnit().getId())){
+            throw new HttpException(10003, "Users are not allowed.", HttpServletResponse.SC_FORBIDDEN);
+        }
+
+        consumptionList = consumptionRepository.findByUnitIdIn(accessibleUnits);
+
+        //Lưu trữ tổng điện nước theo từng cấp
+        Map<ObjectId, ConsumptionTotalDto> consumptionSummaryMap = new HashMap<>();
+
+        for(Consumption consumption: consumptionList){
+            ObjectId currentUnitId = consumption.getUnit().getId();
+            int unitLevel = unitService.getUnitLevel(currentUnitId);
+            long electricityNumber = consumption.getElectricityConsumption().getNumber();
+            long waterNumber = consumption.getWaterConsumption().getNumber();
+
+            while (currentUnitId != null && unitLevel >= currentLevel) {
+                consumptionSummaryMap.putIfAbsent(currentUnitId, new ConsumptionTotalDto(0, 0));
+                ConsumptionTotalDto summary = consumptionSummaryMap.get(currentUnitId);
+
+                // Cộng dồn điện nước
+                summary.setTotalElectricityConsumption(summary.getTotalElectricityConsumption() + electricityNumber);
+                summary.setTotalWaterConsumption(summary.getTotalWaterConsumption() + waterNumber);
+
+                Unit unit = unitService.findUnitById(currentUnitId);
+                // Cập nhật đơn vị cấp cao hơn
+                if(Objects.nonNull(unit.getParentUnit())){
+                    currentUnitId = unit.getParentUnit().getId();
+                    unitLevel = unit.getParentUnit().getUnitLevel();
+                }else{
+                    currentUnitId = null;
+                }
+            }
+        }
+
+        // Thêm tổng hợp điện nước cho các đơn vị cấp cao hơn vào kết quả
+        consumptionSummaryMap.forEach((id, summary) -> {
+            ConsumptionTotalDto consumptionTotalDto = new ConsumptionTotalDto();
+            // Tìm hoặc tạo `ConsumptionDetailResponseDto` cho từng cấp
+            Unit unit = unitService.findUnitById(id);
+            com.project.EWCM.pojo.Unit unitDto = new com.project.EWCM.pojo.Unit(unit.getId(),unit.getUnitName(), unit.getUnitLevel());
+
+            consumptionTotalDto.setUnit(unitDto);
+            consumptionTotalDto.setTotalElectricityConsumption(summary.getTotalElectricityConsumption());
+            consumptionTotalDto.setTotalWaterConsumption(summary.getTotalWaterConsumption());
+            consumptionTotalDtoList.add(consumptionTotalDto);
+        });
+
+        logger.info("EWCM-Get Consumption Total: " + consumptionTotalDtoList.toString());
+        return consumptionTotalDtoList;
     }
 }

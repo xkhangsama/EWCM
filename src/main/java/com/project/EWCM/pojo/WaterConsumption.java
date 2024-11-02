@@ -1,5 +1,6 @@
 package com.project.EWCM.pojo;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -9,6 +10,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class WaterConsumption {
     private int type;
+    @NotNull(message = "Number cannot be null")
     private long number;
-    private String file;
+    private File file;
 }

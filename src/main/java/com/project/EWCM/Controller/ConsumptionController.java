@@ -89,4 +89,18 @@ public class ConsumptionController {
         List<ConsumptionDetailResponseDto> consumptionDetail = consumptionService.getConsumptionOfUnit(username, unitId);
         return ResponseEntity.ok(consumptionDetail);
     }
+
+    @GetMapping("/--get-consumption-total")
+    public ResponseEntity<Object> getConsumptionTotal(HttpServletRequest request){
+        String requestPath = request.getMethod() + " " + request.getRequestURI() + (request.getQueryString() != null ? "?" + request.getQueryString() : "");
+        logger.info("EWCM-Request: " + requestPath);
+        // Lấy token từ header Authorization
+        String token = request.getHeader("Authorization").substring(7); // Lấy token sau "Bearer "
+
+        // Lấy thông tin từ token
+        String username = jwtUtils.getUserNameFromJwtToken(token);
+        List<ConsumptionTotalDto> totalList = consumptionService.getConsumptionTotal(username);
+        return ResponseEntity.ok(totalList);
+    }
+
 }

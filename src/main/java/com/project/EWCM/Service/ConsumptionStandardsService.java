@@ -35,6 +35,11 @@ public class ConsumptionStandardsService {
 
         Account account = accountService.findAccountByUsername(username);
 
+        ConsumptionStandards consumptionStandards = findConsumpotionStandardsByLevel(consumptionStandardsDto.getUnitLevel());
+        if(Objects.nonNull(consumptionStandards)){
+            new HttpException(10004, "Consumption Standard of level have been.", HttpServletResponse.SC_BAD_REQUEST);
+        }
+
         if(Objects.nonNull(consumptionStandardsDto.getElectricityConsumptionMax())){
             newStandards.setElectricityConsumptionMax(consumptionStandardsDto.getElectricityConsumptionMax());
         }
@@ -122,5 +127,11 @@ public class ConsumptionStandardsService {
         logger.info("EWCM-Delete Consumption Standards Data: " + oldConsumptionStandards.toString());
         affectedRowsDto.setAffectedRows(1);
         return affectedRowsDto;
+    }
+
+    public ConsumptionStandards findConsumpotionStandardsByLevel(int level){
+        return consumptionStandardsRepository.findByUnitLevel(level).orElseThrow(() ->
+                new HttpException(10004, "User not found.", HttpServletResponse.SC_NOT_FOUND)
+        );
     }
 }

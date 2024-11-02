@@ -362,4 +362,8 @@ public class UnitService {
                 .collect(Collectors.toList());
         return accessibleUnitIds;
     }
+
+    public int getUnitLevel(ObjectId unitId) {
+        return findUnitById(unitId).getUnitLevel();
+    }
 }

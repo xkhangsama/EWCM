@@ -22,6 +22,8 @@ public class ConsumptionDetailResponseDto {
     private ElectricityConsumption electricityConsumption;
     private WaterConsumption waterConsumption;
     private Unit unit;
+    private long electricityExceedAmount; // Lượng điện vượt - thì vượt + thì chưa vượt
+    private long waterExceedAmount; // Lượng nước vượt - thì vượt + thì chưa vượt
     private Account createdBy;
     private Account updatedBy;
     private Date createdDate;
